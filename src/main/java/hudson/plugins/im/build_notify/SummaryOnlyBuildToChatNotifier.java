@@ -47,6 +47,7 @@ public class SummaryOnlyBuildToChatNotifier extends BuildToChatNotifier {
 
     @Extension
     public static class DescriptorImpl extends BuildToChatNotifierDescriptor {
+        @Override
         public String getDisplayName() {
             return "Just summary";
         }

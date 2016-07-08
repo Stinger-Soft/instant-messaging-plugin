@@ -2,10 +2,10 @@ package hudson.plugins.im.bot;
 
 import hudson.Extension;
 import hudson.model.Item;
-import hudson.model.AbstractProject;
 import hudson.model.Run;
 import hudson.plugins.im.Sender;
 import hudson.plugins.im.tools.MessageHelper;
+import hudson.plugins.im.util.BuildableItemDelegator;
 import hudson.security.Permission;
 
 import java.io.IOException;
@@ -25,7 +25,7 @@ public class CommentCommand extends AbstractSingleJobCommand {
     }
 
     @Override
-    protected CharSequence getMessageForJob(AbstractProject<?, ?> job, Sender sender,
+    protected CharSequence getMessageForJob(BuildableItemDelegator job, Sender sender,
             String[] args) throws CommandException {
         
         try {

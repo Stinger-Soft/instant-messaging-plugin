@@ -1,18 +1,20 @@
 package hudson.plugins.im.bot;
 
 import hudson.Extension;
-import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
 import hudson.model.Executor;
-import hudson.model.Hudson;
+import hudson.model.Run;
 import hudson.plugins.im.Sender;
+import hudson.plugins.im.util.BuildableItemDelegator;
 import hudson.security.Permission;
 
 import java.util.Collection;
 import java.util.Collections;
+import jenkins.model.Jenkins;
 
 /**
  * Abort a running job
+ *
  * @author R. Tyler Ballance <tyler@slide.com>
  */
 @Extension
@@ -23,31 +25,32 @@ public class AbortCommand extends AbstractSingleJobCommand {
         return Collections.singleton("abort");
     }
 
-	public String getHelp() {
-		return " <job> - specify which job to abort";
-	}
+    @Override
+    public String getHelp() {
+        return " <job> - specify which job to abort";
+    }
 
     @Override
-    protected CharSequence getMessageForJob(AbstractProject<?, ?> project, Sender sender, String[] args) throws CommandException {
-        if ( (project.isInQueue() == false) && (project.isBuilding() == false) ) {
+    protected CharSequence getMessageForJob(BuildableItemDelegator project, Sender sender, String[] args) throws CommandException {
+        if ((project.isInQueue() == false) && (project.isBuilding() == false)) {
             throw new CommandException(
                     sender + ": how do you intend to abort a build that isn't building?");
         }
-        
+
         boolean aborted = false;
-        if (project.isInQueue()) {
-            aborted = Hudson.getInstance().getQueue().cancel(project);
+        if (project.isInQueue() && project.asTask() != null) {
+            aborted = Jenkins.getActiveInstance().getQueue().cancel(project.asTask());
         }
-        
+
         if (!aborted) {
             // must be already building
-            AbstractBuild<?, ?> build = project.getLastBuild();
+            Run<?, ?> build = project.getLastBuild();
             if (build == null) {
                 // No builds?
                 throw new CommandException(
                         sender.getNickname() + ": it appears this job has never been built");
             }
-            
+
             // TODO: do build.doStop() instead of the following lines when moving to core 1.489!
             Executor ex = build.getExecutor();
             if (ex == null) {

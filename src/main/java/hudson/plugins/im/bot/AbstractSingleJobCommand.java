@@ -1,8 +1,8 @@
 package hudson.plugins.im.bot;
 
-import hudson.model.AbstractProject;
 import hudson.plugins.im.Sender;
 import hudson.plugins.im.tools.MessageHelper;
+import hudson.plugins.im.util.BuildableItemDelegator;
 import hudson.security.Permission;
 
 /**
@@ -38,7 +38,7 @@ abstract class AbstractSingleJobCommand extends AbstractTextSendingCommand {
      * @return the result message for this job if the command was executed successfully
      * @throws CommandException if the command couldn't be executed for any reason
      */
-    protected abstract CharSequence getMessageForJob(AbstractProject<?, ?> job, Sender sender,
+    protected abstract CharSequence getMessageForJob(BuildableItemDelegator job, Sender sender,
             String[] arguments) throws CommandException;
     
     protected abstract Permission getRequiredPermission();
@@ -55,7 +55,7 @@ abstract class AbstractSingleJobCommand extends AbstractTextSendingCommand {
                 jobName = args[1].replace("\"", "");
                 remainingArgs = MessageHelper.copyOfRange(args, 2, args.length);
             }
-            AbstractProject<?, ?> job = getJobProvider().getJobByNameOrDisplayName(jobName);
+            BuildableItemDelegator job = getJobProvider().getJobByNameOrDisplayName(jobName);
             if (job != null) {
                 if (!job.hasPermission(getRequiredPermission())) {
                     return "You don't have the permissions to perform this command on this job.";

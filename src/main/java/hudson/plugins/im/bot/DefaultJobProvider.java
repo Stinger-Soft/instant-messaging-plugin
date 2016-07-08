@@ -1,66 +1,76 @@
 package hudson.plugins.im.bot;
 
-import hudson.model.AbstractProject;
+import hudson.model.Job;
 import hudson.model.View;
+import hudson.plugins.im.util.BuildableItemDelegator;
+import java.util.ArrayList;
 
 import java.util.List;
 
 import jenkins.model.Jenkins;
 
 /**
- * Default {@link JobProvider} which directly accesses {@link Jenkins#getInstance()}.
+ * Default {@link JobProvider} which directly accesses
+ * {@link Jenkins#getInstance()}.
  *
  * @author kutzi
  */
 public class DefaultJobProvider implements JobProvider {
 
     @Override
-    public AbstractProject<?, ?> getJobByName(String name) {
-        return Jenkins.getInstance().getItemByFullName(name, AbstractProject.class);
+    public BuildableItemDelegator getJobByName(String name) {
+        return new BuildableItemDelegator(Jenkins.getActiveInstance().getItemByFullName(name, Job.class));
     }
-    
 
     @SuppressWarnings("rawtypes")
     @Override
-    public AbstractProject<?, ?> getJobByDisplayName(String displayName) {
-        List<AbstractProject> allItems = Jenkins.getInstance().getAllItems(AbstractProject.class);
-        for (AbstractProject job : allItems) {
+    public BuildableItemDelegator getJobByDisplayName(String displayName) {
+        List<Job> allItems = Jenkins.getActiveInstance().getAllItems(Job.class);
+        for (Job job : allItems) {
             if (displayName.equals(job.getDisplayName())) {
-                return job;
+                return new BuildableItemDelegator(job);
             }
         }
         return null;
     }
 
     @Override
-    public AbstractProject<?, ?> getJobByNameOrDisplayName(String name) {
-        AbstractProject<?,?> jobByName = getJobByName(name);
+    public BuildableItemDelegator getJobByNameOrDisplayName(String name) {
+        BuildableItemDelegator jobByName = getJobByName(name);
         return jobByName != null ? jobByName : getJobByDisplayName(name);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public List<AbstractProject<?,?>> getAllJobs() {
+    public List<BuildableItemDelegator> getAllJobs() {
         @SuppressWarnings("rawtypes")
-        List items = Jenkins.getInstance().getAllItems(AbstractProject.class);
-        return items;
-    }
-    
-    @Override
-    @SuppressWarnings("unchecked")
-    public List<AbstractProject<?,?>> getTopLevelJobs() {
-        @SuppressWarnings("rawtypes")
-        List items = Jenkins.getInstance().getItems(AbstractProject.class);
-        return items;
+        List<Job> items = Jenkins.getActiveInstance().getAllItems(Job.class);
+        List<BuildableItemDelegator> delegators = new ArrayList<>();
+        for (Job job : items) {
+            delegators.add(new BuildableItemDelegator((job)));
+        }
+        return delegators;
     }
 
     @Override
-    public boolean isTopLevelJob(AbstractProject<?, ?> job) {
-        return Jenkins.getInstance().equals(job.getParent());
+    @SuppressWarnings("unchecked")
+    public List<BuildableItemDelegator> getTopLevelJobs() {
+        @SuppressWarnings("rawtypes")
+        List<Job> items = Jenkins.getInstance().getItems(Job.class);
+        List<BuildableItemDelegator> delegators = new ArrayList<>();
+        for (Job job : items) {
+            delegators.add(new BuildableItemDelegator((job)));
+        }
+        return delegators;
+    }
+
+    @Override
+    public boolean isTopLevelJob(BuildableItemDelegator job) {
+        return Jenkins.getActiveInstance().equals(job.getParent());
     }
 
     @Override
     public View getView(String viewName) {
-        return Jenkins.getInstance().getView(viewName);
+        return Jenkins.getActiveInstance().getView(viewName);
     }
 }

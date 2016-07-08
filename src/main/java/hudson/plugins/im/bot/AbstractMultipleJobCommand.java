@@ -6,9 +6,11 @@ import hudson.model.View;
 import hudson.plugins.im.Sender;
 import hudson.plugins.im.tools.MessageHelper;
 import hudson.plugins.im.tools.Pair;
+import hudson.plugins.im.util.BuildableItemDelegator;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 
 /**
  * Abstract command which returns a result message for one or several jobs.
@@ -16,40 +18,39 @@ import java.util.Collection;
  * @author kutzi
  */
 abstract class AbstractMultipleJobCommand extends AbstractTextSendingCommand {
-	
-	static final String UNKNOWN_JOB_STR = "unknown job";
-	static final String UNKNOWN_VIEW_STR = "unknown view";
 
-	/**
-	 * Returns the message to return for this job.
-	 * Note that {@link AbstractMultipleJobCommand} already inserts one newline after each job's
-	 * message so you don't have to do it yourself.
-	 * 
-	 * @param job The job
-	 * @return the result message for this job
-	 */
-    protected abstract CharSequence getMessageForJob(AbstractProject<?, ?> job);
+    static final String UNKNOWN_JOB_STR = "unknown job";
+    static final String UNKNOWN_VIEW_STR = "unknown view";
 
     /**
-     * Returns a short name of the command needed for the help message
-     * and as a leading descriptor in the result message.
-     * 
+     * Returns the message to return for this job. Note that
+     * {@link AbstractMultipleJobCommand} already inserts one newline after each
+     * job's message so you don't have to do it yourself.
+     *
+     * @param job The job
+     * @return the result message for this job
+     */
+    protected abstract CharSequence getMessageForJob(BuildableItemDelegator job);
+
+    /**
+     * Returns a short name of the command needed for the help message and as a
+     * leading descriptor in the result message.
+     *
      * @return short command name
      */
     protected abstract String getCommandShortName();
-    
+
     enum Mode {
-    	SINGLE, VIEW, ALL;
+        SINGLE, VIEW, ALL;
     }
 
     @Override
-	protected String getReply(Bot bot, Sender sender, String[] args) {
-    	
+    protected String getReply(Bot bot, Sender sender, String[] args) {
+
 //    	if (!authorizationCheck()) {
 //    		return "Sorry, can't do that!";
 //    	}
-
-        Collection<AbstractProject<?, ?>> projects = new ArrayList<AbstractProject<?, ?>>();
+        Collection<BuildableItemDelegator> projects = new ArrayList<>();
 
         final Pair<Mode, String> pair;
         try {
@@ -60,21 +61,22 @@ abstract class AbstractMultipleJobCommand extends AbstractTextSendingCommand {
 
         if (!projects.isEmpty()) {
             StringBuilder msg = new StringBuilder();
-                
-            switch(pair.getHead()) {
-            	case SINGLE : break;
-            	case ALL:
-            		msg.append(getCommandShortName())
-            			.append(" of all projects:\n");
-            		break;
-            	case VIEW:
-            		msg.append(getCommandShortName())
-        				.append(" of projects in view " + pair.getTail() + ":\n");
-            		break;
+
+            switch (pair.getHead()) {
+                case SINGLE:
+                    break;
+                case ALL:
+                    msg.append(getCommandShortName())
+                            .append(" of all projects:\n");
+                    break;
+                case VIEW:
+                    msg.append(getCommandShortName()).append(" of projects in view ").append(pair.getTail())
+                            .append(":\n");
+                    break;
             }
 
             boolean first = true;
-            for (AbstractProject<?, ?> project : projects) {
+            for (BuildableItemDelegator project : projects) {
                 if (!first) {
                     msg.append("\n");
                 } else {
@@ -87,17 +89,17 @@ abstract class AbstractMultipleJobCommand extends AbstractTextSendingCommand {
         } else {
             return sender + ": no job found";
         }
-	}
-    
+    }
+
     /**
      * Returns a list of projects for the given arguments.
-     * 
+     *
      * @param projects the list to which the projects are added
-     * @return a pair of Mode (single job, jobs from view or all) and view name -
-     * where view name will be null if mode != VIEW
+     * @return a pair of Mode (single job, jobs from view or all) and view name
+     * - where view name will be null if mode != VIEW
      */
-    Pair<Mode, String> getProjects(Sender sender, String[] args, Collection<AbstractProject<?, ?>> projects)
-        throws CommandException {
+    Pair<Mode, String> getProjects(Sender sender, String[] args, Collection<BuildableItemDelegator> projects)
+            throws CommandException {
         final Mode mode;
         String view = null;
         if (args.length >= 2) {
@@ -109,7 +111,7 @@ abstract class AbstractMultipleJobCommand extends AbstractTextSendingCommand {
                 mode = Mode.SINGLE;
                 String jobName = MessageHelper.getJoinedName(args, 1);
 
-                AbstractProject<?, ?> project = getJobProvider().getJobByNameOrDisplayName(jobName);
+                BuildableItemDelegator project = getJobProvider().getJobByNameOrDisplayName(jobName);
                 if (project != null) {
                     projects.add(project);
                 } else {
@@ -126,20 +128,25 @@ abstract class AbstractMultipleJobCommand extends AbstractTextSendingCommand {
         return Pair.create(mode, view);
     }
 
-	public String getHelp() {
+    @Override
+    public String getHelp() {
         return " [<job>|-v <view>] - show the "
                 + getCommandShortName()
                 + " of a specific job, jobs in a view or all jobs";
     }
 
-    private void getProjectsForView(Collection<AbstractProject<?, ?>> toAddTo, String viewName) {
+    private void getProjectsForView(Collection<BuildableItemDelegator> toAddTo, String viewName) {
         View view = getJobProvider().getView(viewName);
 
         if (view != null) {
             Collection<TopLevelItem> items = view.getItems();
             for (TopLevelItem item : items) {
-                if (item instanceof AbstractProject<?, ?>) {
-                    toAddTo.add((AbstractProject<?, ?>) item);
+                if(item instanceof BuildableItemDelegator) {
+                    toAddTo.add((BuildableItemDelegator) item);
+                } else if (item instanceof AbstractProject) {
+                    toAddTo.add(new BuildableItemDelegator((AbstractProject) item));
+                } else if (item instanceof WorkflowJob) {
+                    toAddTo.add(new BuildableItemDelegator((WorkflowJob) item));
                 }
             }
         } else {
